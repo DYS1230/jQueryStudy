@@ -750,6 +750,11 @@ rtrim = new RegExp( "^" + whitespace + "+|((?:^|[^\\\\])(?:\\\\.)*)" + whitespac
 以空格 1～多次开头
 或者 （非\\开头加空格）以空格结尾
 
+以几个实例读懂上面那个正则
+
+(?:^|[^\\]) 会匹配一个不是 '\\' 的任意字符，前提是结尾非 '\\字符'
+若是 则不匹配，只是个 空字符串， (?:\\.) 会匹配'\\字符'
+
 var a = /(?:(^|5)(\\.)*)$/;
 var b = '6'
 console.log(b.match(a))
@@ -782,6 +787,176 @@ var o = /(?:(^|[^\\])(\\.)*)$/;
 var p = '\\5'
 console.log(p.match(o))
 
+之后看 Sizzle 函数
+
+Sizzle( selector, context, results, seed )  *****坐标记，后面两个参数未知是何？
+
+要求 context 的 nodeType 是  1 或 9 或 11
+
+记忆几个关键的nodeType
+1 element
+2 attribute
+3 text
+9 document
+11 documentFragment
+
+Sizzle 会优先使用 window 自带的 如 getElementById getElementsByTagNamegetElementsByClassName querySelectorAll
+不行再调用 select 函数。
+Sizzle 里面有众多前面未有的变量及函数，需后期观看 *****
+
+定义一个 缓存函数
+/**
+ * Create key-value caches of limited size
+ * @returns {function(string, object)} Returns the Object data after storing it on itself with
+ *	property name the (space-suffixed) string and (if the cache is larger than Expr.cacheLength)
+ *	deleting the oldest entry
+ */
+function createCache() {
+	var keys = [];
+
+	function cache( key, value ) {
+		// Use (key + " ") to avoid collision with native prototype properties (see Issue #157)
+		if ( keys.push( key + " " ) > Expr.cacheLength ) {
+			// Only keep the most recent entries
+			delete cache[ keys.shift() ];
+		}
+		return (cache[ key + " " ] = value);
+	}
+	return cache;
+}
+
+原有注释虽然讲得明明白白，但是未知其作用。
+关键未知Expr是啥 *****
 
 
-ie 有个bug getelementbyid() 参数可为name ，未验证 反正ie8没有
+/**
+ * Mark a function for special use by Sizzle
+ * @param {Function} fn The function to mark
+ */
+function markFunction( fn ) {
+	fn[ expando ] = true;
+	return fn;
+}
+
+这个也未知作用
+
+其中 expando = "sizzle" + 1 * new Date()
+
+目前认为可以作为函数是否已经使用来对待。
+
+其后有定义一个 assert 方法。在关于前端测试中经常可看到改函数
+/**
+ * Support testing using an element
+ * @param {Function} fn Passed the created element and returns a boolean result
+ */
+function assert( fn ) {
+	var el = document.createElement("fieldset");
+
+	try {
+		return !!fn( el );
+	} catch (e) {
+		return false;
+	} finally {
+		// Remove from its parent by default
+		if ( el.parentNode ) {
+			el.parentNode.removeChild( el );
+		}
+		// release memory in IE
+		el = null;
+	}
+}
+
+try catch finally 
+其中 finally 会在执行完 try 和 catch 后执行
+
+今日在写 async await 中就遇到 try catch
+不得不说 async await 实在太好用了
+function test(time) {
+	return new Promise((resolve, reject) => {
+		setTimeout(() => {
+			resolve('ok')
+			// reject('error')
+		}, time)
+	})
+}
+
+async function run() {
+	console.log('run begin');
+	try {
+		var result = await test(1500);
+		console.log(result);
+	} catch (e) {
+		console.log(e);
+	} finally {
+		console.log('run end');
+	}
+}
+run();
+
+接着定义一个 addHandle 方法 为指定的属性添加相同的方法，此处同 createCache 关键未知Expr是啥 *****
+/**
+ * Adds the same handler for all of the specified attrs
+ * @param {String} attrs Pipe-separated list of attributes
+ * @param {Function} handler The method that will be applied
+ */
+function addHandle( attrs, handler ) {
+	var arr = attrs.split("|"),
+		i = arr.length;
+
+	while ( i-- ) {
+		Expr.attrHandle[ arr[i] ] = handler;
+	}
+}
+
+接着定以  createInputPseudo  createButtonPseudo  createDisabledPseudo  createPositionalPseudo
+
+其中 createPositionalPseudo 用到了上面提过的 markFunction 整个函数都不知道意义，为位置伪造？也没传 element 
+/**
+ * Returns a function to use in pseudos for positionals
+ * @param {Function} fn
+ */
+function createPositionalPseudo( fn ) {
+	return markFunction(function( argument ) {
+		argument = +argument;
+		return markFunction(function( seed, matches ) {
+			var j,
+				matchIndexes = fn( [], seed.length, argument ),
+				i = matchIndexes.length;
+
+			// Match elements found at the specified indexes
+			while ( i-- ) {
+				if ( seed[ (j = matchIndexes[i]) ] ) {
+					seed[j] = !(matches[j] = seed[j]);
+				}
+			}
+		});
+	});
+}
+
+/**
+ * Checks a node for validity as a Sizzle context
+ * @param {Element|Object=} context
+ * @returns {Element|Object|Boolean} The input node if acceptable, otherwise a falsy value
+ */
+function testContext( context ) {
+	return context && typeof context.getElementsByTagName !== "undefined" && context;
+}
+
+测试上下文？ 这函数也够绝 return context && typeof context.getElementsByTagName !== "undefined" && context; 
+链式调用。最后返回 context 但若不存在就返回 false
+
+从未接触过 XML 
+isXML = Sizzle.isXML = function( elem ) {
+	// documentElement is verified for cases where it doesn't yet exist
+	// (such as loading iframes in IE - #4833)
+	var documentElement = elem && (elem.ownerDocument || elem).documentElement;
+	return documentElement ? documentElement.nodeName !== "HTML" : false;
+};
+
+其中 ownerDocument 返回 document 对象
+
+<p id="a">123</p>
+console.log(document.getElementById('a').documentElement) // undefined
+
+
+其后一个 setDocument ，400行代码的大函数
