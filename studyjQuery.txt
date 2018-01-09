@@ -674,6 +674,13 @@ str.replace(c, function () {
 });
 
 
+预匹配，有肯定(?=x)和否定(?!x)两种形式，表示匹配结果后紧跟着x或不能有x（注意匹配结果中不含x）
+
+   'abc'.match(/\w/g)结果为["a","b","c"]
+   'abc'.match(/\w(?=b)/g)结果为["a"]
+   'abc'.match(/\w(?!b)/g)结果为["b","c"]
+
+
 四根斜杠 即 两根斜杠
 之后用在 new RegExp 则表示一根
 
@@ -1430,13 +1437,6 @@ var siblings = function( n, elem ) {
 	return matched;
 };
 
-// 不解释
-function nodeName( elem, name ) {
-
-  return elem.nodeName && elem.nodeName.toLowerCase() === name.toLowerCase();
-
-};
-
 // 匹配 <input /> 单标签
 var rsingleTag = ( /^<([a-z][^\/\0>:\x20\t\r\n\f]*)[\x20\t\r\n\f]*\/?>(?:<\/\1>|)$/i );
 
@@ -1491,6 +1491,7 @@ jQuery.each( {
 		return jQuery.merge( [], elem.childNodes );
 	}
 }, function( name, fn ) {
+	// selector 为筛选器
 	jQuery.fn[ name ] = function( until, selector ) {
 		// this 就是调用该函数的对象 如当 $('#c').parentsUntil('body')  this 就是$('#c')
 		var matched = jQuery.map( this, fn, until );
@@ -1520,3 +1521,239 @@ jQuery.each( {
 		return this.pushStack( matched );
 	};
 } );
+
+// 相当于一个过滤器，过滤dom
+function winnow( elements, qualifier, not ) {
+	if ( jQuery.isFunction( qualifier ) ) {
+		return jQuery.grep( elements, function( elem, i ) {
+			return !!qualifier.call( elem, i, elem ) !== not;
+			// ( !!qulifier.call( elem, i, elem ) ) !== not
+		} );
+	}
+
+	// Single element
+	if ( qualifier.nodeType ) {
+		return jQuery.grep( elements, function( elem ) {
+			return ( elem === qualifier ) !== not;
+		} );
+	}
+
+	// Arraylike of elements (jQuery, arguments, Array)
+	if ( typeof qualifier !== "string" ) {
+		return jQuery.grep( elements, function( elem ) {
+			return ( indexOf.call( qualifier, elem ) > -1 ) !== not;
+		} );
+	}
+
+	// Simple selector that can be filtered directly, removing non-Elements
+	if ( risSimple.test( qualifier ) ) {
+		return jQuery.filter( qualifier, elements, not );
+	}
+
+	// Complex selector, compare the two sets, removing non-Elements
+	qualifier = jQuery.filter( qualifier, elements );
+	return jQuery.grep( elements, function( elem ) {
+		return ( indexOf.call( qualifier, elem ) > -1 ) !== not && elem.nodeType === 1;
+	} );
+}
+
+// 相当于原生的matches拓展
+// expr 为选择器， not 为过滤的选择器
+jQuery.filter = function( expr, elems, not ) {
+	var elem = elems[ 0 ];
+
+	if ( not ) {
+		expr = ":not(" + expr + ")";
+	}
+
+	if ( elems.length === 1 && elem.nodeType === 1 ) {
+		return jQuery.find.matchesSelector( elem, expr ) ? [ elem ] : [];
+	}
+
+	return jQuery.find.matches( expr, jQuery.grep( elems, function( elem ) {
+		return elem.nodeType === 1;
+	} ) );
+};
+
+其后 jQuery.fn 拓展 find, filter, not, is 四个方法
+
+
+find: function( selector ) {
+	var i, ret,
+		len = this.length,
+		self = this;
+
+	// 此为 selector 为 dom 的情况
+	if ( typeof selector !== "string" ) {
+		return this.pushStack( jQuery( selector ).filter( function() {
+			for ( i = 0; i < len; i++ ) {
+				if ( jQuery.contains( self[ i ], this ) ) {
+					return true;
+				}
+			}
+		} ) );
+	}
+
+	ret = this.pushStack( [] );
+
+	for ( i = 0; i < len; i++ ) {
+		jQuery.find( selector, self[ i ], ret );
+	}
+
+	return len > 1 ? jQuery.uniqueSort( ret ) : ret;
+},
+
+
+init = jQuery.fn.init = function( selector, context, root ) {
+	var match, elem;
+
+	// HANDLE: $(""), $(null), $(undefined), $(false)
+	if ( !selector ) {
+		return this;
+	}
+
+	// Method init() accepts an alternate rootjQuery
+	// so migrate can support jQuery.sub (gh-2101)
+	root = root || rootjQuery;
+
+
+	// 三种情况 字符串 节点 function
+	// Handle HTML strings
+	if ( typeof selector === "string" ) {
+		if ( selector[ 0 ] === "<" &&
+			selector[ selector.length - 1 ] === ">" &&
+			selector.length >= 3 ) {
+
+			// Assume that strings that start and end with <> are HTML and skip the regex check
+			match = [ null, selector, null ];
+
+		} else {
+			// rquickExpr = /^(?:\s*(<[\w\W]+>)[^>]*|#([\w-]+))$/,
+			match = rquickExpr.exec( selector );
+			// match[1] 匹配 </w/W>  match[2]匹配 #[(/w-)]+
+		}
+
+		// Match html or make sure no context is specified for #id
+		if ( match && ( match[ 1 ] || !context ) ) {
+
+			// HANDLE: $(html) -> $(array)
+			if ( match[ 1 ] ) {
+				context = context instanceof jQuery ? context[ 0 ] : context;
+
+				// Option to run scripts is true for back-compat
+				// Intentionally let the error be thrown if parseHTML is not present
+				// 此处 parseHTML 返回一个数组，数组长度为1，内容为 document.createElement('xxx')
+				jQuery.merge( this, jQuery.parseHTML(
+					match[ 1 ],
+					context && context.nodeType ? context.ownerDocument || context : document,
+					true
+				) );
+
+				// HANDLE: $(html, props)
+				// 这段代码的作用是给元素标签添加属性
+				// $('<div>', {title: '标题'})
+				// [<div title="标题"></div>]
+				if ( rsingleTag.test( match[ 1 ] ) && jQuery.isPlainObject( context ) ) {
+					for ( match in context ) {
+
+						// Properties of context are called as methods if possible
+						if ( jQuery.isFunction( this[ match ] ) ) {
+							this[ match ]( context[ match ] );
+
+						// ...and otherwise set as attributes
+						} else {
+							this.attr( match, context[ match ] );
+						}
+					}
+				}
+
+				return this;
+
+				// HANDLE: $(#id)
+			} else {
+				elem = document.getElementById( match[ 2 ] );
+
+				if ( elem ) {
+
+					// Inject the element directly into the jQuery object
+					this[ 0 ] = elem;
+					this.length = 1;
+				}
+				return this;
+			}
+
+		// HANDLE: $(expr, $(...))
+		} else if ( !context || context.jquery ) {
+			return ( context || root ).find( selector );
+
+		// HANDLE: $(expr, context)
+		// (which is just equivalent to: $(context).find(expr)
+		} else {
+			return this.constructor( context ).find( selector );
+		}
+
+	// HANDLE: $(DOMElement)
+	} else if ( selector.nodeType ) {
+		this[ 0 ] = selector;
+		this.length = 1;
+		return this;
+
+	// HANDLE: $(function)
+	// Shortcut for document ready
+	} else if ( jQuery.isFunction( selector ) ) {
+		return root.ready !== undefined ?
+			root.ready( selector ) :
+
+				// Execute immediately if ready is not present
+			selector( jQuery );
+	}
+
+	return jQuery.makeArray( selector, this );
+};
+
+
+jQuery.parseHTML = function( data, context, keepScripts ) {
+	if ( typeof data !== "string" ) {
+		return [];
+	}
+	if ( typeof context === "boolean" ) {
+		keepScripts = context;
+		context = false;
+	}
+
+	var base, parsed, scripts;
+
+	if ( !context ) {
+
+		// Stop scripts or inline event handlers from being executed immediately
+		// by using document.implementation
+		if ( support.createHTMLDocument ) {
+			context = document.implementation.createHTMLDocument( "" );
+
+			// Set the base href for the created document
+			// so any parsed elements with URLs
+			// are based on the document's URL (gh-2965)
+			base = context.createElement( "base" );
+			base.href = document.location.href;
+			context.head.appendChild( base );
+		} else {
+			context = document;
+		}
+	}
+
+	parsed = rsingleTag.exec( data );
+	scripts = !keepScripts && [];
+
+	// Single tag
+	if ( parsed ) {
+		return [ context.createElement( parsed[ 1 ] ) ];
+	}
+
+	parsed = buildFragment( [ data ], context, scripts );
+
+	if ( scripts && scripts.length ) {
+		jQuery( scripts ).remove();
+	}
+
+	return jQuery.merge( [], parsed.childNodes );
+};
