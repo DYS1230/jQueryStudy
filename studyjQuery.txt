@@ -1874,6 +1874,17 @@ jQuery.Callbacks = function( options ) {
 				while ( ++firingIndex < list.length ) {
 
 					// Run callback and check for early termination
+			
+			// list[ firingIndex ].apply( memory[ 0 ], memory[ 1 ] )
+			// options.stopOnFalse
+			// 就停止
+
+			// 此处 list 可能会递归， firing 该变量的作用就在此处
+			// var callbacks = $.Callbacks( "memory" );
+			// callbacks.add(function(value) { return callbacks.add(function(value) { console.log(value) }) });
+			// callbacks.fire( "foo" );
+			// callbacks.add(function(value) { return callbacks.add(function(value) { console.log(value) }) });
+			// 若没有 firing 会死循环
 					if ( list[ firingIndex ].apply( memory[ 0 ], memory[ 1 ] ) === false &&
 						options.stopOnFalse ) {
 
@@ -1885,6 +1896,7 @@ jQuery.Callbacks = function( options ) {
 			}
 
 			// Forget the data if we're done with it
+			// 看是否要记忆，是的话 memory就是 queue.shift()
 			if ( !options.memory ) {
 				memory = false;
 			}
@@ -1892,6 +1904,7 @@ jQuery.Callbacks = function( options ) {
 			firing = false;
 
 			// Clean up if we're done firing for good
+			// locked 会把 监听器清空，若memory为true，会设为空数组，否则为空字符串
 			if ( locked ) {
 
 				// Keep an empty list if we have data for future add calls
@@ -1917,7 +1930,7 @@ jQuery.Callbacks = function( options ) {
 						firingIndex = list.length - 1;
 						queue.push( memory );
 					}
-
+					// 添加监听器进入 list
 					( function add( args ) {
 						jQuery.each( args, function( _, arg ) {
 							if ( jQuery.isFunction( arg ) ) {
@@ -1932,6 +1945,7 @@ jQuery.Callbacks = function( options ) {
 						} );
 					} )( arguments );
 
+					// 执行队列
 					if ( memory && !firing ) {
 						fire();
 					}
@@ -2001,7 +2015,9 @@ jQuery.Callbacks = function( options ) {
 			fireWith: function( context, args ) {
 				if ( !locked ) {
 					args = args || [];
+					// 浅复制
 					args = [ context, args.slice ? args.slice() : args ];
+					// 加入一个
 					queue.push( args );
 					if ( !firing ) {
 						fire();
