@@ -2100,212 +2100,211 @@ jQuery.extend( {
 					fns = null;
 				} ).promise();
 			},
-				then: function( onFulfilled, onRejected, onProgress ) {
-					var maxDepth = 0;
-					// 深度？ 
-					//deferred对象，有具有属性notify notifyWith reject rejectWith resolve resolveWith
-					// 及promise对象的属性，即 always catch 等的属性的对象
-					// handler 处理函数
-					// special 不知道是干啥的？ fireWith函数
-					function resolve( depth, deferred, handler, special ) {
+			then: function( onFulfilled, onRejected, onProgress ) {
+				var maxDepth = 0;
+				// 深度？ 
+				//deferred对象，有具有属性notify notifyWith reject rejectWith resolve resolveWith
+				// 及promise对象的属性，即 always catch 等的属性的对象
+				// handler 处理函数
+				// special fireWith函数
+				function resolve( depth, deferred, handler, special ) {
 
-								// 0,
-								// newDefer,
-								// jQuery.isFunction( onProgress ) ?
-								// 	onProgress :
-								// 	Identity,
-								// newDefer.notifyWith
-						return function() {
+					// 0,
+					// newDefer,
+					// jQuery.isFunction( onProgress ) ?
+					// 	onProgress :
+					// 	Identity,
+					// newDefer.notifyWith
+					return function() {
 
 							
-							// 变成 undefined
-							var that = this;
-							// 也 undifined
-							var args = arguments;
+						// 变成 undefined
+						var that = this;
+						// 也 undifined
+						var args = arguments;
 
-							mightThrow = function() {
-								var returned, then;
+						mightThrow = function() {
+							var returned, then;
 
-								// Support: Promises/A+ section 2.3.3.3.3
-								// https://promisesaplus.com/#point-59
-								// Ignore double-resolution attempts
-								if ( depth < maxDepth ) {
-									return;
-								}
+							// Support: Promises/A+ section 2.3.3.3.3
+							// https://promisesaplus.com/#point-59
+							// Ignore double-resolution attempts
+							if ( depth < maxDepth ) {
+								return;
+							}
 
-								returned = handler.apply( that, args );
+							returned = handler.apply( that, args );
 
-								// Support: Promises/A+ section 2.3.1
-								// https://promisesaplus.com/#point-48
-								if ( returned === deferred.promise() ) {
-									throw new TypeError( "Thenable self-resolution" );
-								}
+							// Support: Promises/A+ section 2.3.1
+							// https://promisesaplus.com/#point-48
+							if ( returned === deferred.promise() ) {
+								throw new TypeError( "Thenable self-resolution" );
+							}
 
-								// Support: Promises/A+ sections 2.3.3.1, 3.5
-								// https://promisesaplus.com/#point-54
-								// https://promisesaplus.com/#point-75
-								// Retrieve `then` only once
-								then = returned &&
+							// Support: Promises/A+ sections 2.3.3.1, 3.5
+							// https://promisesaplus.com/#point-54
+							// https://promisesaplus.com/#point-75
+							// Retrieve `then` only once
+							then = returned &&
 
-									// Support: Promises/A+ section 2.3.4
-									// https://promisesaplus.com/#point-64
-									// Only check objects and functions for thenability
-									( typeof returned === "object" ||
-										typeof returned === "function" ) &&
-									returned.then;
+								// Support: Promises/A+ section 2.3.4
+								// https://promisesaplus.com/#point-64
+								// Only check objects and functions for thenability
+								( typeof returned === "object" ||
+									typeof returned === "function" ) &&
+								returned.then;
 
-									// Handle a returned thenable
-								if ( jQuery.isFunction( then ) ) {
+								// Handle a returned thenable
+							if ( jQuery.isFunction( then ) ) {
 
-									// Special processors (notify) just wait for resolution
-									if ( special ) {
-										then.call(
-											returned,
-											resolve( maxDepth, deferred, Identity, special ),
-											resolve( maxDepth, deferred, Thrower, special )
-											);
-
-									// Normal processors (resolve) also hook into progress
-									} else {
-
-										// ...and disregard older resolution values
-										maxDepth++;
-
-										then.call(
-											returned,
-											resolve( maxDepth, deferred, Identity, special ),
-											resolve( maxDepth, deferred, Thrower, special ),
-											resolve( maxDepth, deferred, Identity,
-												deferred.notifyWith )
+								// Special processors (notify) just wait for resolution
+								if ( special ) {
+									then.call(
+										returned,
+										resolve( maxDepth, deferred, Identity, special ),
+										resolve( maxDepth, deferred, Thrower, special )
 										);
-									}
 
-								// Handle all other returned values
+								// Normal processors (resolve) also hook into progress
 								} else {
 
-									// Only substitute handlers pass on context
-									// and multiple values (non-spec behavior)
-									if ( handler !== Identity ) {
-										that = undefined;
-										args = [ returned ];
-									}
+									// ...and disregard older resolution values
+									maxDepth++;
 
-									// Process the value(s)
-									// Default process is resolve
-									// resolveWith 触发
-									( special || deferred.resolveWith )( that, args );
+									then.call(
+										returned,
+										resolve( maxDepth, deferred, Identity, special ),
+										resolve( maxDepth, deferred, Thrower, special ),
+										resolve( maxDepth, deferred, Identity,
+											deferred.notifyWith )
+									);
 								}
-							},
 
-							// Only normal processors (resolve) catch and reject exceptions
-							// 没有 special
-							process = special ?
-								mightThrow :
-								function() {
-									try {
-										mightThrow();
-									} catch ( e ) {
-
-										if ( jQuery.Deferred.exceptionHook ) {
-											jQuery.Deferred.exceptionHook( e,
-												process.stackTrace );
-										}
-
-										// Support: Promises/A+ section 2.3.3.3.4.1
-										// https://promisesaplus.com/#point-61
-										// Ignore post-resolution exceptions
-										if ( depth + 1 >= maxDepth ) {
-
-											// Only substitute handlers pass on context
-											// and multiple values (non-spec behavior)
-											if ( handler !== Thrower ) {
-												that = undefined;
-												args = [ e ];
-											}
-
-											deferred.rejectWith( that, args );
-										}
-									}
-								};
-
-							// Support: Promises/A+ section 2.3.3.3.1
-							// https://promisesaplus.com/#point-57
-							// Re-resolve promises immediately to dodge false rejection from
-							// subsequent errors
-							if ( depth ) {
-								process();
+							// Handle all other returned values
 							} else {
 
-								// Call an optional hook to record the stack, in case of exception
-								// since it's otherwise lost when execution goes async
-								if ( jQuery.Deferred.getStackHook ) {
-									process.stackTrace = jQuery.Deferred.getStackHook();
+								// Only substitute handlers pass on context
+								// and multiple values (non-spec behavior)
+								if ( handler !== Identity ) {
+									that = undefined;
+									args = [ returned ];
 								}
-								// 加入定时器中
-								window.setTimeout( process );
+
+								// Process the value(s)
+								// Default process is resolve
+								// resolveWith 触发
+								( special || deferred.resolveWith )( that, args );
 							}
-						};
-					}
+						},
 
+						// Only normal processors (resolve) catch and reject exceptions
+						// 没有 special
+						process = special ?
+							mightThrow :
+							function() {
+								try {
+									mightThrow();
+								} catch ( e ) {
 
-		// jQuery.Deferred 生成一个具有属性notify notifyWith reject rejectWith resolve resolveWith
-		// 及promise对象的属性，即 always catch 等的属性的对象
-		// 此处传入 fn 参数
-		// 比直接 jQuery.Deferred 多调用 func.call( deferred, deferred ); 注意其中的deferred就是新生成的 那个对象， 
-		// this 变为 newDefer 且传入 fn 一个 argument， 即 newDefer
-					return jQuery.Deferred( function( newDefer ) {
-						// 一次在 progress , done, fail 上加上传入的三个函数,
-						// 非直接加， 通过resolve(....)加
+									if ( jQuery.Deferred.exceptionHook ) {
+										jQuery.Deferred.exceptionHook( e,
+											process.stackTrace );
+									}
 
-						// progress_handlers.add( ... )
-						// resolve 返回一个函数
+									// Support: Promises/A+ section 2.3.3.3.4.1
+									// https://promisesaplus.com/#point-61
+									// Ignore post-resolution exceptions
+									if ( depth + 1 >= maxDepth ) {
 
+										// Only substitute handlers pass on context
+										// and multiple values (non-spec behavior)
+										if ( handler !== Thrower ) {
+											that = undefined;
+											args = [ e ];
+										}
 
-						tuples[ 0 ][ 3 ].add(
-							resolve(
-								0,
-								newDefer,
-								jQuery.isFunction( onProgress ) ?
-									onProgress :
-									Identity,
-								newDefer.notifyWith
-							)
-						);
+										deferred.rejectWith( that, args );
+									}
+								}
+							};
 
-						// fulfilled_handlers.add( ... )
-						// 此处 tuples[ 1 ][ 3 ] 是有 memory 的
-						// 那就会调用 resolve 这个函数返回的那个函数
-						tuples[ 1 ][ 3 ].add(
-							resolve(
-								0,
-								newDefer,
-								jQuery.isFunction( onFulfilled ) ?
-									onFulfilled :
-									Identity
-							)
-						);
+						// Support: Promises/A+ section 2.3.3.3.1
+						// https://promisesaplus.com/#point-57
+						// Re-resolve promises immediately to dodge false rejection from
+						// subsequent errors
+						if ( depth ) {
+							process();
+						} else {
 
-						tuples[2][3].has();
-
-						// rejected_handlers.add( ... )
-						tuples[ 2 ][ 3 ].add(
-							resolve(
-								0,
-								newDefer,
-								jQuery.isFunction( onRejected ) ?
-									onRejected :
-									Thrower
-							)
-						);
-					} ).promise();
-				},
-
-				// Get a promise for this deferred
-				// If obj is provided, the promise aspect is added to the object
-				promise: function( obj ) {
-					return obj != null ? jQuery.extend( obj, promise ) : promise;
+							// Call an optional hook to record the stack, in case of exception
+							// since it's otherwise lost when execution goes async
+							if ( jQuery.Deferred.getStackHook ) {
+								process.stackTrace = jQuery.Deferred.getStackHook();
+							}
+							// 加入定时器中
+							window.setTimeout( process );
+						}
+					};
 				}
+
+
+				// jQuery.Deferred 生成一个具有属性notify notifyWith reject rejectWith resolve resolveWith
+				// 及promise对象的属性，即 always catch 等的属性的对象
+				// 此处传入 fn 参数
+				// 比直接 jQuery.Deferred 多调用 func.call( deferred, deferred ); 注意其中的deferred就是新生成的 那个对象， 
+				// this 变为 newDefer 且传入 fn 一个 argument， 即 newDefer
+				return jQuery.Deferred( function( newDefer ) {
+					// 一次在 progress , done, fail 上加上传入的三个函数,
+					// 非直接加， 通过resolve(....)加
+
+					// progress_handlers.add( ... )
+					// resolve 返回一个函数
+
+
+					tuples[ 0 ][ 3 ].add(
+						resolve(
+							0,
+							newDefer,
+							jQuery.isFunction( onProgress ) ?
+								onProgress :
+								Identity,
+							newDefer.notifyWith
+						)
+					);
+
+					// fulfilled_handlers.add( ... )
+					// 此处若tuples[ 1 ][ 3 ] 是有 memory 的
+					// 比如执行了 resove();
+					// 那就会调用 resolve 这个函数返回的那个函数
+					tuples[ 1 ][ 3 ].add(
+						resolve(
+							0,
+							newDefer,
+							jQuery.isFunction( onFulfilled ) ?
+								onFulfilled :
+								Identity
+						)
+					);
+
+					// rejected_handlers.add( ... )
+					tuples[ 2 ][ 3 ].add(
+						resolve(
+							0,
+							newDefer,
+							jQuery.isFunction( onRejected ) ?
+								onRejected :
+								Thrower
+						)
+					);
+				} ).promise();
 			},
+
+			// Get a promise for this deferred
+			// If obj is provided, the promise aspect is added to the object
+			promise: function( obj ) {
+				return obj != null ? jQuery.extend( obj, promise ) : promise;
+			}
+		},
 		deferred = {};
 
 		// Add list-specific methods
@@ -2383,17 +2382,22 @@ jQuery.extend( {
 			i = remaining,
 
 			// subordinate fulfillment data
+			// 此处是生成 [empty * i];
 			resolveContexts = Array( i ),
+			// 浅复制
 			resolveValues = slice.call( arguments ),
 
 			// the master Deferred
 			master = jQuery.Deferred(),
 
 			// subordinate callback factory
+			// subordinate 附属的，次要的
+			// 这是 resolve 函数
 			updateFunc = function( i ) {
 				return function( value ) {
 					resolveContexts[ i ] = this;
 					resolveValues[ i ] = arguments.length > 1 ? slice.call( arguments ) : value;
+					// 当remaining 没了，就执行master.resoveWith，且传入的是最后一个完成的上下文
 					if ( !( --remaining ) ) {
 						master.resolveWith( resolveContexts, resolveValues );
 					}
@@ -2402,13 +2406,14 @@ jQuery.extend( {
 
 		// Single- and empty arguments are adopted like Promise.resolve
 		if ( remaining <= 1 ) {
+			// master.done( updateFunc( i ) ) 相当于 master.add add返回的是 this，即返回master
 			adoptValue( singleValue, master.done( updateFunc( i ) ).resolve, master.reject,
 				!remaining );
 
 			// Use .then() to unwrap secondary thenables (cf. gh-3000)
 			if ( master.state() === "pending" ||
 				jQuery.isFunction( resolveValues[ i ] && resolveValues[ i ].then ) ) {
-
+				// 返回 then，反正then后面也是 return jQuery.Deferred( function () {} ).promise(); 目前未知为何返回then *****
 				return master.then();
 			}
 		}
@@ -2421,3 +2426,123 @@ jQuery.extend( {
 		return master.promise();
 	}
 } );
+
+// 就是为value 的done加上 resolve 和 fail加上 reject 方法
+function adoptValue( value, resolve, reject, noValue ) {
+	var method;
+
+	try {
+
+		// Check for promise aspect first to privilege synchronous behavior
+		if ( value && jQuery.isFunction( ( method = value.promise ) ) ) {
+			// method.call( value ) 一个promise对象
+			method.call( value ).done( resolve ).fail( reject );
+
+		// Other thenables
+		// 其他有then方法的
+		} else if ( value && jQuery.isFunction( ( method = value.then ) ) ) {
+			method.call( value, resolve, reject );
+
+		// Other non-thenables
+		} else {
+
+			// Control `resolve` arguments by letting Array#slice cast boolean `noValue` to integer:
+			// * false: [ value ].slice( 0 ) => resolve( value )
+			// * true: [ value ].slice( 1 ) => resolve()
+			resolve.apply( undefined, [ value ].slice( noValue ) );
+		}
+
+	// For Promises/A+, convert exceptions into rejections
+	// Since jQuery.when doesn't unwrap thenables, we can skip the extra checks appearing in
+	// Deferred#then to conditionally suppress rejection.
+	} catch ( value ) {
+
+		// Support: Android 4.0 only
+		// Strict mode functions invoked without .call/.apply get global-object context
+		reject.apply( undefined, [ value ] );
+	}
+}
+
+
+
+// The deferred used on DOM ready
+var readyList = jQuery.Deferred();
+
+jQuery.fn.ready = function( fn ) {
+
+	readyList
+		.then( fn )
+
+		// Wrap jQuery.readyException in a function so that the lookup
+		// happens at the time of error handling instead of callback
+		// registration.
+		.catch( function( error ) {
+			jQuery.readyException( error );
+		} );
+
+	return this;
+};
+
+jQuery.extend( {
+
+	// Is the DOM ready to be used? Set to true once it occurs.
+	isReady: false,
+
+	// A counter to track how many items to wait for before
+	// the ready event fires. See #6781
+	readyWait: 1,
+
+	// Handle when the DOM is ready
+	ready: function( wait ) {
+
+		// Abort if there are pending holds or we're already ready
+		if ( wait === true ? --jQuery.readyWait : jQuery.isReady ) {
+			return;
+		}
+
+		// Remember that the DOM is ready
+		jQuery.isReady = true;
+
+		// If a normal DOM Ready event fired, decrement, and wait if need be
+		if ( wait !== true && --jQuery.readyWait > 0 ) {
+			return;
+		}
+
+		// If there are functions bound, to execute
+		debugger;
+		// 触发promise，jQuery.fn.ready(fn)绑定函数都被触发,$(function () { console.log(arguments); }) 比如这个绑定的 console
+		readyList.resolveWith( document, [ jQuery ] );
+	}
+} );
+
+jQuery.ready.then = readyList.then;
+
+// The ready event handler and self cleanup method
+function completed() {
+	document.removeEventListener( "DOMContentLoaded", completed );
+	window.removeEventListener( "load", completed );
+	jQuery.ready();
+}
+
+// Catch cases where $(document).ready() is called
+// after the browser event has already occurred.
+// Support: IE <=9 - 10 only
+// Older IE sometimes signals "interactive" too soon
+if ( document.readyState === "complete" ||
+	( document.readyState !== "loading" && !document.documentElement.doScroll ) ) {
+
+	// Handle it asynchronously to allow scripts the opportunity to delay ready
+	window.setTimeout( jQuery.ready );
+
+} else {
+
+	// Use the handy event callback
+	document.addEventListener( "DOMContentLoaded", completed );
+
+	// A fallback to window.onload, that will always work
+	window.addEventListener( "load", completed );
+}
+
+
+window.onload 指 页面包含图片等文件在内的所有元素都加载完成
+$() 则是 DOMContentLoaded
