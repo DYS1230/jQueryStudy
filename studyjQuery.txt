@@ -2468,6 +2468,7 @@ function adoptValue( value, resolve, reject, noValue ) {
 // The deferred used on DOM ready
 var readyList = jQuery.Deferred();
 
+// 在 readyList 执行后执行 fn
 jQuery.fn.ready = function( fn ) {
 
 	readyList
@@ -2509,7 +2510,6 @@ jQuery.extend( {
 		}
 
 		// If there are functions bound, to execute
-		debugger;
 		// 触发promise，jQuery.fn.ready(fn)绑定函数都被触发,$(function () { console.log(arguments); }) 比如这个绑定的 console
 		readyList.resolveWith( document, [ jQuery ] );
 	}
@@ -2518,6 +2518,7 @@ jQuery.extend( {
 jQuery.ready.then = readyList.then;
 
 // The ready event handler and self cleanup method
+// 执行完后去除定时器
 function completed() {
 	document.removeEventListener( "DOMContentLoaded", completed );
 	window.removeEventListener( "load", completed );
@@ -2546,3 +2547,58 @@ if ( document.readyState === "complete" ||
 
 window.onload 指 页面包含图片等文件在内的所有元素都加载完成
 $() 则是 DOMContentLoaded
+
+之后设置一个 Data 类
+
+	cache: function( owner ) {
+
+		// Check if the owner object already has a cache
+		var value = owner[ this.expando ];
+
+		// If not, create one
+		if ( !value ) {
+			value = {};
+
+			// We can accept data for non-element nodes in modern browsers,
+			// but we should not, see #8335.
+			// Always return an empty object.
+			if ( acceptData( owner ) ) {
+
+				// If it is a node unlikely to be stringify-ed or looped over
+				// use plain assignment
+				// 如果节点不能 stringify 或者 循环 直接赋值
+				if ( owner.nodeType ) {
+					owner[ this.expando ] = value;
+
+				// Otherwise secure it in a non-enumerable property
+				// configurable must be true to allow the property to be
+				// deleted when data is removed
+				} else {
+					Object.defineProperty( owner, this.expando, {
+						value: value,
+						configurable: true
+					} );
+				}
+			}
+		}
+
+		return value;
+	},
+
+
+Object.defineProperty(obj, prop, descriptor);
+
+value: 设置属性的值
+writable: 值是否可以重写。true | false
+enumerable: 目标属性是否可以被枚举。true | false
+configurable: 目标属性是否可以被删除或是否可以再次修改特性(特性就是这四个) true | false
+
+一旦使用Object.defineProperty给对象添加属性，那么如果不设置属性的特性，那么configurable、enumerable、writable这些值都为默认的false
+
+比如　
+Object.defineProperty( owner, this.expando, {
+	value: value,
+	configurable: true
+} );
+
+其默认的 writable 与 enumerable 就是 false
