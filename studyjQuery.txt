@@ -2602,3 +2602,125 @@ Object.defineProperty( owner, this.expando, {
 } );
 
 其默认的 writable 与 enumerable 就是 false
+
+data在jQuery中有两种
+
+一个是用来存数据的, 对应的对象分别是
+
+存储对象: data_user
+
+获取与设置方法: $.data(el, key, value)
+
+另一个是用来存事件的, 如click事件那种, 对应的对象分别是
+
+存储对象: data_priv
+
+获取与设置方法: $._data(el, key, value)
+
+data_user和data_priv, 就如其名, 一个是用户用的, 一个是jQuery私有的, 他们都是一个叫Data的实例对象
+
+	access: function( owner, key, value ) {
+
+		// In cases where either:
+		//
+		//   1. No key was specified
+		//   2. A string key was specified, but no value provided
+		//
+		// Take the "read" path and allow the get method to determine
+		// which value to return, respectively either:
+		//
+		//   1. The entire cache object
+		//   2. The data stored at the key
+		//
+		if ( key === undefined ||
+				( ( key && typeof key === "string" ) && value === undefined ) ) {
+
+			return this.get( owner, key );
+		}
+
+		// When the key is not a string, or both a key and value
+		// are specified, set or extend (existing objects) with either:
+		//
+		//   1. An object of properties
+		//   2. A key and value
+		//
+		this.set( owner, key, value );
+
+		// Since the "set" path can have two possible entry points
+		// return the expected data based on which path was taken[*]
+		return value !== undefined ? value : key;
+	},
+
+这个方法既是 getter，也是 setter，如此而已。它存在的原因是由于 jQuery 的 API 有很多是身兼 setter 和 getter 的功能，比如 .data、.html、.text。有了 access 可以少写很多 if / else。
+
+getter 条件
+
+key 是 undefined，这时取整个 cache
+key 是字符串且value 是undefined，这是取指定 key 的值
+
+setter 条件
+
+owner、key、value 这三个参数都传
+
+
+
+
+data有什么作用？
+
+在我们平时js编码过程中，我们经常会向DOM元素中添加各种自定义属性，这样有一个弊端。
+
+  1、假设我们在DOM元素中添加了一个属性，这个属性指向了某个js对象。dom1.ele = jsObj
+
+  2、当这个js对象发挥完作用后，我们已经用不到他了。这时候按理说应该把这个js变量清空，释放内存。大家都知道，如果一个js对象不存在任何外在引用的话，解释器会自动将其在内存中删除，这也是javascript相对于c++等手动管理内存的程序的优点。
+
+  3、但是这时候问题来了，因为DOM元素引用了这个js对象，尽管这个js对象已经没有存在的意义了，但是解释器是不会把他删除的。如果想要把其删除，我们可能需要将DOM元素的这个属性设置为null。
+
+  4、我们编写了这么多的代码，哪里能把 每个js对象是不是被DOM元素引用了都记住啊？
+
+  5、而且，假如DOM元素与js对象之间相互循环引用，根本就无法删除！ 这就是内存泄漏
+
+  6、所以，为了避免这种情况的发生，我们要尽量避免 引用数据(这里的引用数据可以说是javascript对象) 直接依附在DOM对象上。
+
+  7、data就是用来搞定以上问题的方法。
+
+
+Data 上有 cache  set  get  access  remove   hasData  七个方法
+
+fn 上有 data 方法， 即$('#a').data('bb', 'cc');
+
+jQuery 上有 hasData data removeData， 这个是 data_user 的
+		 _data， _removeData 是 data_priv 的
+
+
+可以尝试
+
+$(document).click(function () {
+	console.log(1);
+})
+
+var x = $._data(document);
+console.log(x);
+
+
+其后 jQuery 定义 queue 与 dequeue， 是加在 data_priv 上的
+
+	queue: function( elem, type, data ) {
+		var queue;
+
+		if ( elem ) {
+			// 不传 type 就是 fx
+			type = ( type || "fx" ) + "queue";
+			queue = dataPriv.get( elem, type );
+
+			// Speed up dequeue by getting out quickly if this is just a lookup
+			if ( data ) {
+				// 传入数组会将全部变成数组的，之前的消失
+				if ( !queue || Array.isArray( data ) ) {
+					queue = dataPriv.access( elem, type, jQuery.makeArray( data ) );
+				} else {
+					queue.push( data );
+				}
+			}
+			return queue || [];
+		}
+	},
