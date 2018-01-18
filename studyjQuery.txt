@@ -2710,11 +2710,13 @@ console.log(x);
 		if ( elem ) {
 			// 不传 type 就是 fx
 			type = ( type || "fx" ) + "queue";
+			// 此处的 queue 是引用
 			queue = dataPriv.get( elem, type );
 
 			// Speed up dequeue by getting out quickly if this is just a lookup
 			if ( data ) {
 				// 传入数组会将全部变成数组的，之前的消失
+				// 无 队列，则创一个数组
 				if ( !queue || Array.isArray( data ) ) {
 					queue = dataPriv.access( elem, type, jQuery.makeArray( data ) );
 				} else {
@@ -2724,3 +2726,151 @@ console.log(x);
 			return queue || [];
 		}
 	},
+
+
+	dequeue: function( elem, type ) {
+		type = type || "fx";
+
+		var queue = jQuery.queue( elem, type ),
+			startLength = queue.length,
+			fn = queue.shift(),
+			hooks = jQuery._queueHooks( elem, type ),
+			next = function() {
+				jQuery.dequeue( elem, type );
+			};
+
+		// If the fx queue is dequeued, always remove the progress sentinel
+		if ( fn === "inprogress" ) {
+			fn = queue.shift();
+			startLength--;
+		}
+
+		if ( fn ) {
+			// Add a progress sentinel to prevent the fx queue from being
+			// automatically dequeued
+			// 添加一个进程标记以防止fx队列被自动出队
+			if ( type === "fx" ) {
+				queue.unshift( "inprogress" );
+			}
+
+			// Clear up the last queue stop function
+			// hooks stop 属性何处来的
+			delete hooks.stop;
+			fn.call( elem, next, hooks );
+		}
+
+		if ( !startLength && hooks ) {
+			// 把 type + "queue" 与 type + "queueHooks" 两个属性清除
+			hooks.empty.fire();
+		}
+	},
+
+	// Not public - generate a queueHooks object, or return the current one
+	_queueHooks: function( elem, type ) {
+		var key = type + "queueHooks";
+		// 给 dataPriv 添加个 key: { empty : callbackObj }
+		return dataPriv.get( elem, key ) || dataPriv.access( elem, key, {
+			empty: jQuery.Callbacks( "once memory" ).add( function() {
+				dataPriv.remove( elem, [ type + "queue", key ] );
+			} )
+		} );
+	}
+
+
+jQuery.fn.extend( {
+	queue: function( type, data ) {
+		var setter = 2;
+
+		if ( typeof type !== "string" ) {
+			data = type;
+			type = "fx";
+			setter--;
+		}
+
+		// 当 type 为 string 且 data 无传入时
+		if ( arguments.length < setter ) {
+			return jQuery.queue( this[ 0 ], type );
+		}
+
+		// data 无传入 且  type 不是 string 时， 直接返回 this
+		return data === undefined ?
+			this :
+			this.each( function() {
+				// 为 this 的 queue 传入 data
+				var queue = jQuery.queue( this, type, data );
+
+				// Ensure a hooks for this queue
+				jQuery._queueHooks( this, type );
+
+				// 第一个 fx 直接执行
+				if ( type === "fx" && queue[ 0 ] !== "inprogress" ) {
+					// 此处执行后 queue[ 0 ] 就是 inprogress 了
+					jQuery.dequeue( this, type );
+				}
+			} );
+	},
+	dequeue: function( type ) {
+		return this.each( function() {
+			jQuery.dequeue( this, type );
+		} );
+	},
+	clearQueue: function( type ) {
+		return this.queue( type || "fx", [] );
+	},
+
+	// Get a promise resolved when queues of a certain type
+	// are emptied (fx is the type by default)
+	promise: function( type, obj ) {
+		var tmp,
+			count = 1,
+			defer = jQuery.Deferred(),
+			elements = this,
+			i = this.length,
+			resolve = function() {
+				if ( !( --count ) ) {
+					defer.resolveWith( elements, [ elements ] );
+				}
+			};
+
+		if ( typeof type !== "string" ) {
+			obj = type;
+			// 此处似乎无任何意义，反正会执行 type = type || 'fx'
+			type = undefined;
+		}
+		type = type || "fx";
+
+		while ( i-- ) {
+			tmp = dataPriv.get( elements[ i ], type + "queueHooks" );
+			if ( tmp && tmp.empty ) {
+				count++;
+				tmp.empty.add( resolve );
+			}
+		}
+		// 如果 count 为 1， 直接执行 resolveWith(elements, [elements]) 而且执行这，仅是代表改变 promise 的状态罢了，因为 defer 没有啥函数挂载
+		resolve();
+		// 此处执行的是 jQuery.extend( obj, promise )
+		return defer.promise( obj );
+	}
+} );
+
+promise 理解的例子
+
+function ff1() {
+    console.log(1)
+}
+function ff2() {
+      console.log(2);
+}
+function succ() {
+      console.log('done');
+}
+$body = $('body')
+$body.queue('mx', ff1);
+$body.queue('mx', ff2);
+ 
+var promise = $body.promise('mx');
+promise.then(succ);
+ 
+setInterval(function() {
+    $body.dequeue('mx') // 先弹出1,2，最后是"done"
+}, 1500)
