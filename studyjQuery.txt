@@ -3820,7 +3820,7 @@ append: function() {
 
 
 function domManip( collection, args, callback, ignored ) {
-debugger;
+
 	// Flatten any nested arrays
 	// 对 args 降维
 	args = concat.apply( [], args );
@@ -3888,6 +3888,7 @@ debugger;
 				jQuery.map( scripts, restoreScript );
 
 				// Evaluate executable scripts on first document insertion
+				// 在首次插入文档时评估可执行脚本
 				for ( i = 0; i < hasScripts; i++ ) {
 					node = scripts[ i ];
 					if ( rscriptType.test( node.type || "" ) &&
@@ -3951,7 +3952,7 @@ function remove( elem, selector, keepData ) {
 	return elem;
 }
 
-
+jQuery.extend( {
 	cleanData: function( elems ) {
 		var data, elem, type,
 			special = jQuery.event.special,
@@ -3988,3 +3989,55 @@ function remove( elem, selector, keepData ) {
 			}
 		}
 	}
+
+jQuery.fn.extend( {
+	clone: function( dataAndEvents, deepDataAndEvents ) {
+		dataAndEvents = dataAndEvents == null ? false : dataAndEvents;
+		deepDataAndEvents = deepDataAndEvents == null ? dataAndEvents : deepDataAndEvents;
+
+		return this.map( function() {
+			// 此处的 this 就转换成 this[i] 了， 写法非常不推荐
+			return jQuery.clone( this, dataAndEvents, deepDataAndEvents );
+		} );
+	},
+
+	html: function( value ) {
+		return access( this, function( value ) {
+			var elem = this[ 0 ] || {},
+				i = 0,
+				l = this.length;
+
+			// 传空  直接获得 innerHTML
+			if ( value === undefined && elem.nodeType === 1 ) {
+				return elem.innerHTML;
+			}
+
+			// See if we can take a shortcut and just use innerHTML
+			// 看是否能直接用 innerHTML 不允许表格类DOM，如 tr td 这些 option 这些也不允许，即需要有特定的父DOM才生效的DOM
+			if ( typeof value === "string" && !rnoInnerhtml.test( value ) &&
+				!wrapMap[ ( rtagName.exec( value ) || [ "", "" ] )[ 1 ].toLowerCase() ] ) {
+
+				value = jQuery.htmlPrefilter( value );
+
+				try {
+					for ( ; i < l; i++ ) {
+						elem = this[ i ] || {};
+
+						// Remove element nodes and prevent memory leaks
+						if ( elem.nodeType === 1 ) {
+							jQuery.cleanData( getAll( elem, false ) );
+							elem.innerHTML = value;
+						}
+					}
+
+					elem = 0;
+
+				// If using innerHTML throws an exception, use the fallback method
+				} catch ( e ) {}
+			}
+
+			if ( elem ) {
+				this.empty().append( value );
+			}
+		}, null, value, arguments.length );
+	},
