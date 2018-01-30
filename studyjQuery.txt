@@ -4041,3 +4041,43 @@ jQuery.fn.extend( {
 			}
 		}, null, value, arguments.length );
 	},
+
+
+jQuery.each( {
+	appendTo: "append",
+	prependTo: "prepend",
+	insertBefore: "before",
+	insertAfter: "after",
+	replaceAll: "replaceWith"
+}, function( name, original ) {
+	// name 为 key, original 为 value
+	jQuery.fn[ name ] = function( selector ) {
+		// insert 为要被插入的元素
+		// this 是 要插入的
+		var elems,
+			ret = [],
+			insert = jQuery( selector ),
+			last = insert.length - 1,
+			i = 0;
+
+		for ( ; i <= last; i++ ) {
+			elems = i === last ? this : this.clone( true );
+			// 变成 $(insert).fn(this);
+			jQuery( insert[ i ] )[ original ]( elems );
+
+			// Support: Android <=4.0 only, PhantomJS 1 only
+			// .get() because push.apply(_, arraylike) throws on ancient WebKit
+			push.apply( ret, elems.get() );
+		}
+
+		return this.pushStack( ret );
+	};
+} );
+
+后面是关于 css 的了，其中一些兼容，直接跳过，没兴趣。
+
+getPropertyValue 的 用法 window.getComputedStyle(element, null).getPropertyValue("float");
+
+也可以直接使用键值，不过 float 就需要是 styleFloat（IE）或 cssFloat（非IE）
+
+而且可以非驼峰写法（不支持驼峰写法），例如：style.getPropertyValue("border-top-left-radius");
