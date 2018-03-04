@@ -6,7 +6,7 @@ jQuery 代码结构分析
 
 首先定义一堆私有变量
 
-记录变量，或者单看看不c出意思的。
+记录变量，或者单看看不出意思的。
 
 var class2type = {};
 
@@ -143,6 +143,7 @@ b(); // 此处this就是window
 
 之后知乎里面一道 this 的题目
 
+
 var a = 10;
 function test() {
     a = 5;
@@ -165,6 +166,9 @@ console.log(a);
 
 答案是 5 10 10 5
        5 undefined undefined 5
+
+再补充箭头函数
+箭头函数没有自己的this, 它的this是继承而来; 默认指向在定义它时所处的对象(宿主对象),而不是执行时的对象
 
 
 
@@ -302,7 +306,7 @@ jQuery.extend = jQuery.fn.extend = function () {
 
 					if ( copyIsArray ) {
 						// 目前不清楚为何要重置copyIsArray，完全没作用
-						// 然而是有很大作用的，因为此次为循环，且copyIsArray是“或”语句，因此需要重置copyIsArray
+						// 然而是有很大作用的，因为此次为循环，且copyIsArray是“或”语句，或的话可能不会执行到，因此需要重置copyIsArray
 						copyIsArray = false;
 						clone = src && Array.isArray( src ) ? src : [];
 					} else {
@@ -431,7 +435,8 @@ isPlainObject: function ( obj ) {
 
 其后获得参数原型
 
-若无原型，证明是 Object.create( null ) 创建的。 *****后期补充 Object.create 知识，继承相关的知识
+若无原型，证明是 Object.create( null ) 创建的。继承在另一篇文里。
+
 
 判断原型的 constructor 是否为 Object() 
 简单/朴素对象的原型 constructor 为 function 
@@ -441,7 +446,7 @@ function A() {}
 
 var b = new A();
 
-$.isPlainObject(b); // false
+$.isPlainObject(b); // falsev
 
 b 的 constructor 为 function A() {}
 
@@ -543,7 +548,7 @@ each: function ( obj, callback ) {
 
 之后此处是 callback.call( obj[ i ], i, obj[ i ] ) 证明 this 是 item
 
-而原生的 this 是 window (无论是否箭头函数，箭头函数 this 要回顾 *****)
+而原生的 this 是 window (无论是否箭头函数)
 
 jQuery 的 each 可中断， 原生不可
 
@@ -582,7 +587,7 @@ proxy: function ( fn, context ) {
 		return fn.apply( context || this, args.concat( slice.call( arguments, ) ) );
 	}
 
-	// 这感觉没啥用，原注释也说可以删除
+	// 这感觉没啥用
 	// Set the guid of unique handler to the same of original handler, so it can be removed
 	proxy.guid = fn.guid = fn.guid || jQuery.guid++;
 

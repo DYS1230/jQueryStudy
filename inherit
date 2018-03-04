@@ -1,0 +1,209 @@
+组合继承
+
+function Person() {
+	this.sex = 'male';
+}
+
+Person.prototype.say = function () {
+	console.log('HELLO');
+};
+
+function Worker() {
+	Person.call(this);
+	this.name = 'John'
+}
+
+Worker.prototype = new Person();
+
+Worker.prototype.speak = function () {
+	console.log('WORLD');
+}
+
+var a = new Worker();
+
+试着输出 a 的所有属性
+
+var getAllPropertyNames = function (obj) {
+	var props = [];
+	do {
+		props = props.concat(Object.getOwnPropertyNames(obj));
+	} while (obj = Object.getPrototypeOf(obj));
+	return props;
+}
+var propertys = getAllPropertyNames(a);
+
+console.log(propertys.join("\n"));
+
+sex
+name
+sex
+speak
+constructor
+say
+constructor
+__defineGetter__
+__defineSetter__
+hasOwnProperty
+__lookupGetter__
+__lookupSetter__
+isPrototypeOf
+propertyIsEnumerable
+toString
+valueOf
+__proto__
+toLocaleString
+
+看到 sex 被输出两次。
+
+因为此处 Worker.prototype = new Person();
+
+把 Person 的属性也放在 Worker 的原型链中了
+
+其后看
+寄生组合式继承
+
+function Person() {
+	this.sex = 'male';
+}
+
+Person.prototype.say = function () {
+	console.log('HELLO');
+};
+
+function Worker() {
+	Person.call(this);
+	this.name = 'John'
+}
+
+// 此处变化
+function inherit(child, parent) {
+	var prototype = Object.create(parent.prototype)
+	prototype.constructor = child;
+	child.prototype = prototype;
+}
+
+inherit(Worker, Person);
+
+Worker.prototype.speak = function () {
+	console.log('WORLD');
+}
+
+在输出所有属性
+sex
+name
+constructor
+speak
+constructor
+say
+constructor
+__defineGetter__
+__defineSetter__
+hasOwnProperty
+__lookupGetter__
+__lookupSetter__
+isPrototypeOf
+propertyIsEnumerable
+toString
+valueOf
+__proto__
+toLocaleString
+
+可看到name此时不会输出两次了，也就是 Person 的属性不存在 Worker 的原型链中了
+
+function inherit(child, parent) {
+	var prototype = Object.create(parent.prototype)
+	prototype.constructor = child;
+	child.prototype = prototype;
+}
+
+Object.create = function (obj) {
+	function F() {}
+	F.prototype = obj;
+	return new F();
+}
+
+此处的 inherit 函数可以看成是间接继承。
+
+不直接 child.prototype = parent.prototype 是因为若这样写，那就是引用了。
+
+接着试试 class
+
+class Person {
+	constructor() {
+		this.sex = 'male'
+	}
+	say() {
+		console.log('HELLO')
+	}
+}
+
+class Worker extends Person {
+	constructor() {
+		super();
+		this.name = 'John';
+	}
+	speak() {
+		console.log('WORLD');
+	}
+}
+
+var a = new Worker();
+
+
+var getAllPropertyNames = function (obj) {
+	var props = [];
+	do {
+		props = props.concat(Object.getOwnPropertyNames(obj));
+	} while (obj = Object.getPrototypeOf(obj));
+	return props;
+}
+var propertys = getAllPropertyNames(a);
+
+
+sex
+name
+constructor
+speak
+constructor
+say
+constructor
+__defineGetter__
+__defineSetter__
+hasOwnProperty
+__lookupGetter__
+__lookupSetter__
+isPrototypeOf
+propertyIsEnumerable
+toString
+valueOf
+__proto__
+toLocaleString
+
+也就是 class extends 实际就是 寄生组合继承
+
+
+
+最后说说
+var getAllPropertyNames = function (obj) {
+	var props = [];
+	do {
+		props = props.concat(Object.getOwnPropertyNames(obj));
+	} while (obj = Object.getPrototypeOf(obj))
+	return props;
+}
+
+Object.getOwnPropertyNames(obj)
+获取 obj 上的所有“自身”属性，无论是否可以枚举
+其后 obj = Object.getPrototypeOf(obj) 递归至 obj 的原型链上，后循环获取原型链上的属性
+
+function Cat() {
+	this.color = 'orange';
+}
+
+Cat.prototype.say = () => console.log('HELLO')
+
+var garfield = new Cat();
+
+Object.getPrototypeOf(garifield) === Cat.prototype;
+
+Object.getPrototypeOf(Cat.prototype) === Object.prototype;
