@@ -32,6 +32,12 @@ typeof Object()
 https://segmentfault.com/q/1010000002736664
 https://segmentfault.com/q/1010000000249140
 
+Object.__proto__ === Function.prototype
+Function.__proto__.__proto__ === Object.prototype
+
+一般__proto__  为 constructor.proptypes
+如果一个对象是通过Object.create函数构造出来的，.那其__proto__就不一定是.constructor.prototype了
+
 目前感觉很绕，需抽空研究
 
 var hasOwn = class2type.hasOwnProperty;
@@ -47,9 +53,10 @@ var hasOwn = class2type.hasOwnProperty;
 {}.hasOwnProperty('toString');  // false
 Object.prototype.hasOwnProperty('toString'); // true
 
+
 补充 for in 是会遍历原型链的，但是不会遍历不可枚举的属性
 
-再补充 in 可以是不可枚举属性
+再补充 in 可以是不可枚举属性，也有原型链
 'toString' in {}; // true
 
 Object.getOwnPropertyNames 就可以输出 hasOwnProperty 的所有属性
@@ -234,6 +241,7 @@ fcamelCase = function( all, letter ) {
 
 pushStack: function( elems ) {
 	// Build a new jQuery matched element set
+	// constructor: jQuery,
 	var ret = jQuery.merge( this.constructor(), elems );
 	
 	// Add the old object onto the stack (as a reference)
@@ -247,7 +255,9 @@ pushStack: function( elems ) {
 
 目前可以取消链式调用的方法，如 eq find 等等都用了此函数，jQuery 的强大的链式调用关键方法
 
-做标记***** 遇到 end 回来距离用
+end: function () {
+	return this.prevObject || this.constructor();
+}
 
 做标记***** 后期 jQuery 的方法与 underscore 比较 (each, map 这些)
 
@@ -398,7 +408,7 @@ isNumeric: function ( obj ) {
 
 一开始有个疑惑，为甚不直接 obj - obj
 
-是为了排除 '' 即空字符串的情况
+是为了排除 null '' Boolean
 
 其后补充知识
 
@@ -438,7 +448,7 @@ isPlainObject: function ( obj ) {
 若无原型，证明是 Object.create( null ) 创建的。继承在另一篇文里。
 
 
-判断原型的 constructor 是否为 Object() 
+判断原型的 constructor 是否为 ƒ Object() { [native code] }
 简单/朴素对象的原型 constructor 为 function 
 toString 为function Object() { [native code] }
 
@@ -446,7 +456,7 @@ function A() {}
 
 var b = new A();
 
-$.isPlainObject(b); // falsev
+$.isPlainObject(b); // false
 
 b 的 constructor 为 function A() {}
 
@@ -584,10 +594,9 @@ proxy: function ( fn, context ) {
 	// 模拟 bind
 	args = slice.call( arguments, 2);
 	proxy = function () {
-		return fn.apply( context || this, args.concat( slice.call( arguments, ) ) );
+		return fn.apply( context || this, args.concat( slice.call( arguments ) ) );
 	}
 
-	// 这感觉没啥用
 	// Set the guid of unique handler to the same of original handler, so it can be removed
 	proxy.guid = fn.guid = fn.guid || jQuery.guid++;
 

@@ -108,7 +108,7 @@ valueOf
 __proto__
 toLocaleString
 
-可看到name此时不会输出两次了，也就是 Person 的属性不存在 Worker 的原型链中了
+可看到sex此时不会输出两次了，也就是 Person 的属性不存在 Worker 的原型链中了
 
 function inherit(child, parent) {
 	var prototype = Object.create(parent.prototype)
