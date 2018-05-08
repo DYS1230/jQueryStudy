@@ -7,6 +7,9 @@ jQuery 的 callbacks 详解
 可为 once unique stopOnfalse memory
 可以是单独或者组合，组合如 once memory
 
+once 就是只执行一次
+memory 就是记录下传入的参数
+
 第一步先转换 option 成对象
 如把 once memory 转成
 {
@@ -50,8 +53,8 @@ add: function (...rest) {
 		(function add(args) {
 			jQuery.each(args, function (index, item) {
 				if (jQuery.isFunction(item)) {
-					// 若 非unique 且 list 中不包含 item 
-					if (!option.unique && !self.has(item)) {
+					// 若 非unique   或者为 unique 且 list 中不包含 item 
+					if (!option.unique || !self.has(item)) {
 						list.push(arg);
 					}
 				// 对于 item 为数组的递归加入 list
@@ -172,7 +175,7 @@ firing = function () {
 	// 在这我不得不MMP, jQuery 写法是 for ( ; queue.length; firingIndex = -1 ) 看着就操蛋
 	// 这里可以看出 queue 是参数, list 是函数
 	// 之后对于涉及 queue 的有 add 与 fireWith
-	// fireWith 加入了 queue, 而 add 会把 memory 加回来
+	// fireWith 加入了 queue, 而虽然 add 会把 memory 加回进 queue, 但是后面的firing()又把queue给shift了
 	// 可以说 queue 基本就只是一个
 	while (queue.length) {
 		// memory 就是最后的queue
@@ -206,12 +209,69 @@ firing = function () {
 	}
 }
 
-
+var cb = $.Callbacks('memory');
 // fire 新添加函数例子
 cb.add(function (name) {
     console.log('one', name);
 });
-cb.fire('Jacky');//first Jacky
+cb.fire('Jacky');//one Jacky
 cb.add(function (name) {
     console.log('two', name);
 });//two Jacky
+
+var cb = $.Callbacks();
+// fire 新添加函数例子
+cb.add(function (name) {
+    console.log('one', name);
+});
+cb.fire('Jacky');//one Jacky
+cb.add(function (name) {
+    console.log('two', name);
+});// 无输出
+
+
+
+var cb = $.Callbacks('once');
+
+cb.add(function (name) {
+    console.log('one', name);
+});
+
+cb.fire('Jacky');//one Jacky
+cb.fire('tom'); // 无输出
+
+
+var cb = $.Callbacks();
+cb.add(function (name) {
+    console.log('one', name);
+});
+cb.fire('Jacky');//one Jacky
+cb.fire('tom'); // one tom
+
+
+var cb = $.Callbacks('once memory');
+cb.add(function (name) {
+    console.log('one', name);
+});
+cb.fire('Jacky');//one Jacky
+cb.add(function (name) {
+    console.log('two', name);
+});//two Jacky
+cb.add(function (name) {
+    console.log('three', name);
+});//three Jacky
+cb.fire('tom');//无输出
+
+
+var cb = $.Callbacks();
+cb.add(function (name) {
+    console.log('one', name);
+});
+cb.fire('Jacky');//one Jacky
+cb.add(function (name) {
+    console.log('two', name);
+});//无输出
+cb.add(function (name) {
+    console.log('three', name);
+});//无输出
+cb.fire('tom');//输出三行 1. one tom 2. two tom 3. three tom
