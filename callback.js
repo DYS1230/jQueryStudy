@@ -104,7 +104,7 @@ empty: function () {
 	return list;
 }
 
-// 清空的 locked 与 queue, 把 list 与 memory 转为空
+// 清空 locked 与 queue, 把 list 与 memory 转为空
 disable: function () {
 	locked = queue = [];
 	list = memory = '';
@@ -165,7 +165,7 @@ fired: function() {
 // var callbacks = $.Callbacks( "memory" );
 // callbacks.add(function(value) { return callbacks.add(function(value) { console.log(value) }) })
 // 不过应该没哪个操蛋的人会这样写,但是这里就考虑了这情况,导致看起来复杂多了
-firing = function () {
+fire = function () {
 	// once 就表示 locked 了
 	locked = locked || option.once;
 
